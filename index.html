@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="POLE — Tu fuente de noticias, calendario y clasificaciones de motorsport: F1, WRC, WEC, IndyCar, NASCAR y más.">
+    <title>POLE Motorsport</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- ========== OVERLAY (mobile drawer) ========== -->
+    <div id="overlay"></div>
+
+    <!-- ========== MOBILE DRAWER ========== -->
+    <nav id="mobile-drawer" aria-label="Menú móvil">
+        <a href="#" data-page="home">🏠 Inicio</a>
+        <a href="#">📅 Calendario</a>
+        <a href="#">📰 Noticias</a>
+        <div class="drawer-section">Categorías</div>
+        <div id="drawer-cat-links"></div>
+    </nav>
+
+    <!-- ========== TOP NAVBAR ========== -->
+    <header id="top-nav">
+        <!-- Hamburger — solo small -->
+        <button id="btn-menu" aria-label="Menú">
+            <span></span><span></span><span></span>
+        </button>
+
+        <!-- Logo left (small + medium) -->
+        <a class="logo" id="nav-logo-left" href="#" data-page="home">
+            <span class="logo-icon">🏁</span><span>POLE</span>
+        </a>
+
+        <!-- Logo center (large) -->
+        <a class="logo" id="nav-logo-center" href="#" data-page="home">
+            <span class="logo-icon">🏁</span><span>POLE</span>
+        </a>
+
+        <!-- Desktop nav links -->
+        <nav id="nav-links" aria-label="Navegación principal">
+            <a href="#" data-page="home" class="active">Inicio</a>
+            <a href="#">Calendario</a>
+            <a href="#">Noticias</a>
+            <div class="dropdown">
+                <button id="cat-dropdown-btn">Categoría ▾</button>
+                <div class="dropdown-menu" id="cat-dropdown-menu"></div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ========== APP WRAPPER ========== -->
+    <div id="app">
+
+        <!-- SIDEBAR (large) -->
+        <aside id="sidebar" aria-label="Navegación lateral">
+            <a href="#" data-page="home">🏠 Inicio</a>
+            <a href="#">📅 Calendario</a>
+            <a href="#">📰 Noticias</a>
+            <div class="sidebar-section">Categorías</div>
+            <div class="sidebar-categories" id="sidebar-links"></div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main id="main-content">
+
+            <!-- ============================
+         PAGE: HOME
+         ============================ -->
+            <section id="page-home" class="page active">
+
+                <!-- Home + Eventos en grid responsive -->
+                <div class="home-grid">
+
+                    <!-- Columna principal -->
+                    <div class="home-main">
+                        <h1 class="section-title">Inicio</h1>
+                        <div class="featured-img" id="home-featured">
+                            <!-- JS inserta imagen -->
+                        </div>
+
+                    </div>
+
+
+                    <!-- Columna sidebar: Eventos -->
+                    <div class="home-sidebar">
+                        <div class="eventos-box">
+                            <div class="eventos-header">
+                                <h2 class="section-title" style="margin-bottom:0;border:none;font-size:1.1rem">Eventos
+                                </h2>
+                                <div class="day-nav">
+                                    <button aria-label="Día anterior">◄</button>
+                                    <span class="day-label">Hoy</span>
+                                    <button aria-label="Día siguiente">►</button>
+                                </div>
+                            </div>
+                            <div id="eventos-list"><!-- JS --></div>
+                        </div>
+                    </div>
+
+                    <!-- Noticias -->
+                    <div class="noticias-section home-noticias">
+                        <h2 class="section-title">Noticias</h2>
+                        <div class="noticias-grid" id="noticias-home-grid">
+                            <!-- JS inserta tarjetas -->
+                        </div>
+                    </div>
+
+                </div><!-- /home-grid -->
+
+            </section>
+
+            <!-- ============================
+         PAGE: CATEGORÍA
+         ============================ -->
+            <section id="page-categoria" class="page">
+
+                <!-- Cabecera de categoría -->
+                <div class="cat-header">
+                    <div class="cat-logo" id="cat-logo">F1</div>
+                    <h1 class="cat-title" id="cat-page-title">Formula 1</h1>
+                </div>
+
+                <!-- Featured image categoría (medium/small) -->
+                <div class="featured-img" id="cat-featured" style="margin-bottom:20px;display:none"></div>
+
+                <!-- Tabs (small + medium) -->
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="clasificacion">Clasificación</button>
+                    <button class="tab-btn" data-tab="calendario">Calendario</button>
+                    <button class="tab-btn" data-tab="noticias">Noticias</button>
+                </div>
+
+                <!-- 3-col grid on large, tab panels on small/medium -->
+                <div class="cat-grid-large" id="cat-grid-large">
+
+                    <!-- CLASIFICACION -->
+                    <div class="tab-panel active" id="tab-clasificacion">
+                        <h2 class="section-title">Clasificación</h2>
+                        <div class="tabla-clasificacion">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="num">#</th>
+                                        <th>Corredor</th>
+                                        <th style="text-align:right">Pts</th>
+                                        <th style="text-align:right">Pts</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-body"><!-- JS --></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- CALENDARIO -->
+                    <div class="tab-panel" id="tab-calendario">
+                        <h2 class="section-title">Calendario</h2>
+                        <div class="cal-list" id="cat-cal-list"><!-- JS --></div>
+                        <div class="pagination">
+                            <button>◄ Anterior</button>
+                            <button>Siguiente ►</button>
+                        </div>
+                    </div>
+
+                    <!-- NOTICIAS -->
+                    <div class="tab-panel" id="tab-noticias">
+                        <h2 class="section-title">Noticias</h2>
+                        <div class="noticias-list" id="cat-noticias-list"><!-- JS --></div>
+                        <div class="pagination">
+                            <button>◄ Anterior</button>
+                            <button>Siguiente ►</button>
+                        </div>
+                    </div>
+
+                </div><!-- /cat-grid-large -->
+
+            </section>
+
+        </main><!-- /main-content -->
+    </div><!-- /app -->
+
+    <!-- ========== Extra responsive CSS for cat page ========== -->
+    <style>
+        /* Medium: show cat featured image */
+        @media (min-width: 768px) {
+            #cat-featured {
+                display: none !important;
+            }
+        }
+
+
+        /* Large: hide cat featured, show 3-col */
+        @media (min-width: 1100px) {
+            #cat-featured {
+                display: none !important;
+            }
+
+            .cat-grid-large {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 24px;
+                align-items: start;
+            }
+
+            /* All panels visible on large */
+            .tab-panel {
+                display: block !important;
+            }
+        }
+    </style>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
