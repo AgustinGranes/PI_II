@@ -1,40 +1,27 @@
 /* ===== POLE Motorsport — app.js ===== */
 
-// Global Error Boundary to help catch and debug any client-side issues
 window.addEventListener('error', function(e) {
     console.error("Global Error Captured:", e.message, "at", e.filename, ":", e.lineno);
-    const debugDiv = document.createElement('div');
-    debugDiv.style.position = 'fixed';
-    debugDiv.style.bottom = '0';
-    debugDiv.style.left = '0';
-    debugDiv.style.right = '0';
-    debugDiv.style.background = '#e10600';
-    debugDiv.style.color = '#fff';
-    debugDiv.style.padding = '12px';
-    debugDiv.style.zIndex = '99999';
-    debugDiv.style.fontSize = '12px';
-    debugDiv.style.fontFamily = 'monospace';
-    debugDiv.style.borderTop = '3px solid #fff';
-    debugDiv.innerHTML = `<strong>Error de Aplicación:</strong> ${e.message} <br> <em>${e.filename} (Línea ${e.lineno})</em>`;
-    document.body.appendChild(debugDiv);
 });
 
-/* ---- Static / Configuration Data ---- */
+/* ---- Static Data & API Configuration ---- */
 const CATEGORIAS = ['F1', 'WEC', 'WRC', 'TC', 'INDYCAR', 'NASCAR'];
 
-const FEATURED_IMAGES = {
-    F1: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Red_Bull_Racing_RB16B_front_2021.jpg/1280px-Red_Bull_Racing_RB16B_front_2021.jpg',
-    WEC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/24h_du_Mans_2014_%2814310853497%29.jpg/1280px-24h_du_Mans_2014_%2814310853497%29.jpg',
-    WRC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Hyundai_i20_WRC_-_Sébastien_Loeb_-_Rally_Italia_Sardegna_2022.jpg/1280px-Hyundai_i20_WRC_-_Sébastien_Loeb_-_Rally_Italia_Sardegna_2022.jpg',
-    TC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/WTCC_2012_round_in_Zandvoort_2.jpg/1280px-WTCC_2012_round_in_Zandvoort_2.jpg',
-    INDYCAR: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Will_Power_2015_Indianapolis_500.jpg/1280px-Will_Power_2015_Indianapolis_500.jpg',
-    NASCAR: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/NASCAR_Sprint_Cup_Series_Daytona_500_2012.jpg/1280px-NASCAR_Sprint_Cup_Series_Daytona_500_2012.jpg',
-    HOME: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Red_Bull_Racing_RB16B_front_2021.jpg/1280px-Red_Bull_Racing_RB16B_front_2021.jpg',
-};
+// Imágenes de contingencia (se usan solo si la API no manda imagen de noticia)
+const FEATURED_IMAGES = {};
+CATEGORIAS.forEach(cat => {
+    FEATURED_IMAGES[cat] = `img/${cat.toLowerCase()}-destacado.jpg`;
+});
+FEATURED_IMAGES.HOME = 'img/home-destacado.jpg';
 
+// Colores de acento
 const CAT_COLORS = {
-    F1: '#e10600', WEC: '#0070c0', WRC: '#007a3d', TC: '#f5a623',
-    INDYCAR: '#00aeef', NASCAR: '#f5c518',
+    F1: '#e10600',
+    WEC: '#0070c0',
+    WRC: '#007a3d',
+    TC: '#f5a623',
+    INDYCAR: '#00aeef',
+    NASCAR: '#f5c518'
 };
 
 /* ===== Global State ===== */
@@ -50,8 +37,14 @@ const STATE = {
     loading: false
 };
 
+let currentPage = 'home';
 let currentCat = 'F1';
-let currentPage = 'home'; // 'home' | 'categoria'
+
+// Controladores de fecha
+let currentHomeMonth = new Date().getMonth();
+let currentHomeYear = new Date().getFullYear();
+let currentCalMonth = new Date().getMonth();
+let currentCalYear = new Date().getFullYear();
 
 /* ===================== INIT ===================== */
 document.addEventListener('DOMContentLoaded', () => {
@@ -66,19 +59,16 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ===================== API SERVICE ===================== */
 async function fetchCategoryData(cat) {
     const key = cat.toUpperCase();
-    if (STATE.categories[key]) {
-        return STATE.categories[key];
-    }
-    const catId = cat.toLowerCase();
-    const url = `https://vueltadeinstalacion.vercel.app/api/${catId}`;
+    if (STATE.categories[key]) return STATE.categories[key];
+    
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
+        const res = await fetch(`https://vueltadeinstalacion.vercel.app/api/${cat.toLowerCase()}`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
         STATE.categories[key] = data;
         return data;
     } catch (e) {
-        console.error(`Error fetching data for ${cat}:`, e);
+        console.warn(`Aviso: Error cargando datos para ${cat}. Verificá que la ruta exista en tu API.`, e);
         return null;
     }
 }
@@ -86,34 +76,22 @@ async function fetchCategoryData(cat) {
 async function loadAllData() {
     STATE.loading = true;
     showLoadingState(true);
-
-    let loadedAny = false;
     let settledCount = 0;
 
-    const promises = CATEGORIAS.map(async (cat) => {
+    CATEGORIAS.forEach(async (cat) => {
         try {
             const data = await fetchCategoryData(cat);
             if (data) {
-                loadedAny = true;
-                // Render incrementally as each category returns its data!
                 buildHomePage();
+                buildGeneralPages();
                 if (currentPage === 'categoria' && currentCat === cat) {
                     buildCategoryPage(cat);
                 }
             }
-        } catch (e) {
-            console.error(`Error in background load for ${cat}:`, e);
         } finally {
             settledCount++;
             if (settledCount === CATEGORIAS.length) {
                 STATE.loading = false;
-                if (!loadedAny) {
-                    // If absolutely everything failed, display clean fallback messages
-                    buildHomePage();
-                    if (currentPage === 'categoria') {
-                        buildCategoryPage(currentCat);
-                    }
-                }
             }
         }
     });
@@ -121,173 +99,301 @@ async function loadAllData() {
 
 function showLoadingState(isLoading) {
     if (!isLoading) return;
-    
-    const eventosList = document.getElementById('eventos-list');
-    const newsGrid = document.getElementById('noticias-home-grid');
-    const tbody = document.getElementById('tabla-body');
-    const calList = document.getElementById('cat-cal-list');
-    const notList = document.getElementById('cat-noticias-list');
-
-    const loaderHTML = `<div class="loader" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.9rem;">Cargando datos en vivo...</div>`;
-    if (eventosList) eventosList.innerHTML = loaderHTML;
-    if (newsGrid) newsGrid.innerHTML = loaderHTML;
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 20px;">Cargando clasificación...</td></tr>`;
-    if (calList) calList.innerHTML = loaderHTML;
-    if (notList) notList.innerHTML = loaderHTML;
-}
-
-/* ===================== NAV ===================== */
-function buildNav() {
-    const dropdown = document.getElementById('cat-dropdown-menu');
-    if (!dropdown) return;
-    CATEGORIAS.forEach(cat => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.textContent = cat;
-        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); });
-        dropdown.appendChild(a);
+    const loaderHTML = `<div class="loader" style="text-align: center; padding: 20px; color: var(--text-secondary);">Cargando datos...</div>`;
+    const elementIds = ['eventos-list', 'noticias-home-grid', 'calendario-page-list'];
+    elementIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = loaderHTML;
     });
 }
 
-function buildSidebar() {
-    const sb = document.getElementById('sidebar-links');
-    if (!sb) return;
-    CATEGORIAS.forEach(cat => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.textContent = cat;
-        a.id = `sb-${cat}`;
-        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); });
-        sb.appendChild(a);
-    });
-}
+/* ===================== CORE UI BUILDERS ===================== */
 
-function buildMobileDrawer() {
-    const dl = document.getElementById('drawer-cat-links');
-    if (!dl) return;
-    CATEGORIAS.forEach(cat => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.textContent = cat;
-        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); closeDrawer(); });
-        dl.appendChild(a);
-    });
-}
-
-/* ===================== HOME PAGE ===================== */
+// --- 1. HOME PAGE ---
 function buildHomePage() {
-    // Featured image
+    let featuredNews = null;
+    let featuredCat = 'F1';
+    
+    for (let cat of CATEGORIAS) {
+        if (STATE.categories[cat] && STATE.categories[cat].news && STATE.categories[cat].news.length > 0) {
+            featuredNews = STATE.categories[cat].news[0];
+            featuredCat = cat;
+            break;
+        }
+    }
+    
     const fi = document.getElementById('home-featured');
-    if (fi) {
-        fi.innerHTML = `<img src="${FEATURED_IMAGES.HOME}" alt="Destacado" onerror="this.parentElement && this.parentElement.classList.add('img-placeholder')">`;
+    if (fi && featuredNews) {
+        // Usamos la imagen de la noticia o el fallback
+        const mainImg = featuredNews.image || FEATURED_IMAGES[featuredCat];
+        fi.innerHTML = `
+            <img src="${mainImg}" alt="Destacado" onerror="this.src='${FEATURED_IMAGES.HOME}'; this.onerror=null;">
+            <div class="featured-overlay">
+                <span class="featured-cat" style="color: ${CAT_COLORS[featuredCat] || 'var(--accent)'}">${featuredCat}</span>
+                <h2 class="featured-title">${featuredNews.title}</h2>
+            </div>`;
+            
+        fi.onclick = () => {
+            if(featuredNews.link) window.open(featuredNews.link, '_blank');
+        };
     }
 
-    // 1. Unified news list from all loaded categories
-    const allNews = [];
+    const homeNews = [];
     CATEGORIAS.forEach(cat => {
-        const data = STATE.categories[cat];
-        if (data && data.news && Array.isArray(data.news)) {
-            data.news.forEach(n => {
-                allNews.push({
-                    cat: cat,
-                    title: n.title,
-                    link: n.link,
-                    source: n.source
-                });
-            });
+        if (STATE.categories[cat] && STATE.categories[cat].news && STATE.categories[cat].news.length > 0) {
+            let n = STATE.categories[cat].news[0];
+            // Integramos n.image provisto por la API
+            homeNews.push({ cat: cat, title: n.title, link: n.link, source: n.source, img: n.image || FEATURED_IMAGES[cat] });
         }
     });
 
     const ng = document.getElementById('noticias-home-grid');
     if (ng) {
         ng.innerHTML = '';
-        if (allNews.length === 0) {
-            if (STATE.loading) {
-                ng.innerHTML = `<div class="loader" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.9rem; width: 100%;">Cargando últimas noticias...</div>`;
-            } else {
-                ng.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-secondary); width: 100%;">No hay noticias disponibles en este momento.</div>`;
-            }
-        } else {
-            allNews.slice(0, 9).forEach(n => {
-                ng.appendChild(createNewsCard(n));
-            });
-        }
+        homeNews.forEach(n => ng.appendChild(createNewsCard(n)));
     }
 
-    // 2. Unified upcoming events from all loaded categories
-    const allEvents = [];
-    CATEGORIAS.forEach(cat => {
-        const data = STATE.categories[cat];
-        if (data && data.calendar && Array.isArray(data.calendar)) {
-            const upcoming = data.calendar.filter(r => r.status === 'Upcoming' || r.status === 'Next' || r.status === 'Live');
-            upcoming.forEach(r => {
-                allEvents.push({
-                    cat: cat,
-                    name: r.race,
-                    desc: `${cat} • ${r.status === 'Live' ? 'EN VIVO' : 'Próxima carrera'}`,
-                    time: formatRaceDate(r),
-                    dateObj: r.startDate ? new Date(r.startDate) : null
+    renderHomeEventsList();
+}
+
+function renderHomeEventsList() {
+    const allEvents = getAllEventsParsed();
+    const eventosMes = allEvents.filter(e => e.dateObj && e.dateObj.getMonth() === currentHomeMonth && e.dateObj.getFullYear() === currentHomeYear);
+    
+    const mesNombre = new Date(currentHomeYear, currentHomeMonth, 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+    
+    const monthLabel = document.getElementById('home-ev-month');
+    if (monthLabel) monthLabel.textContent = mesNombre;
+
+    const list = document.getElementById('eventos-list');
+    if (!list) return;
+    
+    if (eventosMes.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-secondary);">No hay eventos programados en ${mesNombre.split(' ')[0]}.</div>`;
+    } else {
+        renderEventosUI(list, eventosMes);
+    }
+}
+
+// --- 2. PAGINAS GENERALES ---
+function buildGeneralPages() {
+    const notCont = document.getElementById('noticias-page-container');
+    if (notCont) {
+        notCont.innerHTML = '';
+        CATEGORIAS.forEach(cat => {
+            const data = STATE.categories[cat];
+            if (data && data.news && data.news.length > 0) {
+                const group = document.createElement('div');
+                group.className = 'category-news-group';
+                
+                const header = document.createElement('div');
+                header.className = 'category-news-header';
+                header.innerHTML = `<h2 class="category-news-title" style="color: ${CAT_COLORS[cat] || 'var(--accent)'}">${catFullName(cat)}</h2>`;
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'news-carousel-wrapper';
+                
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'carousel-btn prev';
+                prevBtn.innerHTML = '◄';
+                
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'carousel-btn next';
+                nextBtn.innerHTML = '►';
+                
+                const track = document.createElement('div');
+                track.className = 'carousel-track';
+                
+                data.news.forEach(n => {
+                    // Integramos n.image provisto por la API en el carrusel
+                    track.appendChild(createNewsCard({ cat: cat, title: n.title, link: n.link, source: n.source, img: n.image || FEATURED_IMAGES[cat] }));
                 });
+                
+                prevBtn.onclick = () => track.scrollBy({ left: -320, behavior: 'smooth' });
+                nextBtn.onclick = () => track.scrollBy({ left: 320, behavior: 'smooth' });
+                
+                wrapper.appendChild(prevBtn);
+                wrapper.appendChild(track);
+                wrapper.appendChild(nextBtn);
+                
+                group.appendChild(header);
+                group.appendChild(wrapper);
+                notCont.appendChild(group);
+            }
+        });
+    }
+
+    renderFullCalendar();
+}
+
+function renderFullCalendar() {
+    const allEvents = getAllEventsParsed();
+    const mesNombre = new Date(currentCalYear, currentCalMonth, 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+    
+    const titleEl = document.getElementById('cal-page-month');
+    if (titleEl) titleEl.textContent = mesNombre;
+
+    const eventosMes = allEvents.filter(e => e.dateObj && e.dateObj.getMonth() === currentCalMonth && e.dateObj.getFullYear() === currentCalYear);
+
+    const grid = document.getElementById('cal-page-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(currentCalYear, currentCalMonth, 1).getDay();
+    const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+
+    for (let i = 0; i < startOffset; i++) {
+        grid.innerHTML += `<div class="cal-cell empty"></div>`;
+    }
+
+    const hoy = new Date();
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = (d === hoy.getDate() && currentCalMonth === hoy.getMonth() && currentCalYear === hoy.getFullYear());
+        const dayEvents = eventosMes.filter(e => e.dateObj && e.dateObj.getDate() === d);
+        
+        let raceIndicatorHtml = '';
+        if (dayEvents.length > 0) {
+            dayEvents.forEach(ev => {
+                raceIndicatorHtml += `<div class="cal-race-indicator" style="background-color: ${CAT_COLORS[ev.cat] || 'var(--accent)'}">${ev.cat}</div>`;
             });
         }
-    });
 
-    // Sort events by date if available
-    allEvents.sort((a, b) => {
-        if (a.dateObj && b.dateObj) return a.dateObj - b.dateObj;
-        if (a.dateObj) return -1;
-        if (b.dateObj) return 1;
-        return 0;
-    });
+        let cellClass = `cal-cell ${dayEvents.length > 0 ? 'has-race' : ''} ${isToday ? 'today' : ''}`;
+        
+        const cell = document.createElement('div');
+        cell.className = cellClass;
+        cell.innerHTML = `<span class="day-num">${d}</span>${raceIndicatorHtml}`;
+        
+        cell.onclick = () => {
+            document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected-day'));
+            cell.classList.add('selected-day');
+            renderCalendarFilteredList(eventosMes, d);
+        };
 
-    const eventosList = document.getElementById('eventos-list');
-    if (eventosList) {
-        if (allEvents.length === 0) {
-            if (STATE.loading) {
-                eventosList.innerHTML = `<div class="loader" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.9rem;">Cargando próximos eventos...</div>`;
-            } else {
-                // Fallback: show finished races
-                const fallbackEvents = [];
-                CATEGORIAS.forEach(cat => {
-                    const data = STATE.categories[cat];
-                    if (data && data.calendar && Array.isArray(data.calendar)) {
-                        const finished = data.calendar.filter(r => r.status === 'Finished');
-                        finished.slice(-1).forEach(r => {
-                            fallbackEvents.push({
-                                cat: cat,
-                                name: r.race,
-                                desc: `${cat} • Finalizado`,
-                                time: formatRaceDate(r)
-                            });
-                        });
-                    }
-                });
+        grid.appendChild(cell);
+    }
+    
+    renderCalendarFilteredList(eventosMes, null);
+}
 
-                if (fallbackEvents.length === 0) {
-                    eventosList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-secondary);">No hay eventos programados.</div>`;
-                } else {
-                    renderEventos(eventosList, fallbackEvents);
-                }
-            }
+function renderCalendarFilteredList(eventosMes, selectedDay) {
+    const list = document.getElementById('calendario-page-list');
+    const headerTitle = document.getElementById('cal-list-title');
+    
+    let filtered = eventosMes;
+    if (selectedDay !== null) {
+        filtered = eventosMes.filter(e => e.dateObj && e.dateObj.getDate() === selectedDay);
+        if (headerTitle) headerTitle.textContent = `Carreras del ${selectedDay}`;
+    } else {
+        if (headerTitle) headerTitle.textContent = `Próximas Carreras`;
+    }
+    
+    if (list) {
+        if (filtered.length === 0) {
+            list.innerHTML = `<div style="padding:10px; color:var(--text-secondary);">Sin carreras en este día.</div>`;
         } else {
-            renderEventos(eventosList, allEvents.slice(0, 6));
+            renderEventosUI(list, filtered);
         }
     }
 }
 
-function renderEventos(container, eventos) {
-    if (!container) return;
+
+/* ===================== PARSERS Y FORMATEADORES ===================== */
+
+function cleanRaceName(name) {
+    if (!name) return "Carrera";
+    let clean = name.replace(/_/g, ' ').replace(/-/g, ' ');
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
+function parseDateLocal(dateStr, defaultYear = new Date().getFullYear()) {
+    if (!dateStr) return null;
+    let str = String(dateStr).trim();
+    
+    if (str.includes('T') || str.match(/^\d{4}-\d{2}-\d{2}/)) {
+        str = str.split('T')[0];
+        const parts = str.split('-');
+        if (parts.length >= 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+    }
+
+    const meses = {
+        'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
+        'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
+    };
+
+    const parts = str.split('-');
+    let targetDate = parts[parts.length - 1].trim().toLowerCase(); 
+    
+    const match = targetDate.match(/(\d+)\s+([a-z]+)/);
+    if (match) {
+        const day = parseInt(match[1], 10);
+        const monthStr = match[2].substring(0, 3);
+        const month = meses[monthStr];
+        if (month !== undefined) {
+            return new Date(defaultYear, month, day);
+        }
+    }
+    
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getAllEventsParsed() {
+    const allEvents = [];
+    
+    CATEGORIAS.forEach(cat => {
+        const data = STATE.categories[cat];
+        if (data && data.calendar) {
+            data.calendar.forEach(r => {
+                let dateObj = null;
+                let rawDate = r.dates || r.startDate || r.date || r.fecha || r.raceDate || r.start; 
+                
+                if (rawDate) {
+                    dateObj = parseDateLocal(rawDate);
+                }
+                
+                allEvents.push({
+                    cat: cat,
+                    name: cleanRaceName(r.race || r.name),
+                    desc: `${cat} • ${r.status || 'Programada'}`,
+                    time: formatRaceDate(r),
+                    dateObj: dateObj
+                });
+            });
+        }
+    });
+    
+    allEvents.sort((a, b) => {
+        if (a.dateObj && b.dateObj) return a.dateObj - b.dateObj;
+        return 1;
+    });
+    
+    return allEvents;
+}
+
+function renderEventosUI(container, eventos) {
     container.innerHTML = '';
     eventos.forEach(e => {
         const div = document.createElement('div');
         div.className = 'evento-item';
+        
+        let dateString = e.time;
+        if (e.dateObj) {
+            dateString = `${e.dateObj.getDate()} de ${e.dateObj.toLocaleDateString('es-AR', {month:'long'})}`;
+        }
+        
         div.innerHTML = `
-      <div class="e-bullet" style="background: ${CAT_COLORS[e.cat] || 'var(--accent)'};"></div>
-      <div class="e-info">
-        <div class="e-name">${e.name}</div>
-        <div class="e-desc">${e.desc}</div>
-      </div>
-      <div class="e-time">${e.time}</div>`;
+            <div class="e-bullet" style="background: ${CAT_COLORS[e.cat] || 'var(--accent)'};"></div>
+            <div class="e-info">
+                <div class="e-name">${e.name}</div>
+                <div class="e-desc">${e.desc}</div>
+            </div>
+            <div class="e-time" style="text-transform: capitalize;">${dateString}</div>`;
+            
         container.appendChild(div);
     });
 }
@@ -295,322 +401,248 @@ function renderEventos(container, eventos) {
 function createNewsCard(n) {
     const card = document.createElement('div');
     card.className = 'news-card';
-    card.style.cursor = 'pointer';
+    
     card.innerHTML = `
-    <div class="news-card-body">
-      <div class="news-card-cat" style="color: ${CAT_COLORS[n.cat] || 'var(--accent)'};">${n.cat}</div>
-      <div class="news-card-title">${n.title}</div>
-      ${n.source ? `<div class="news-card-source" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Fuente: ${n.source}</div>` : ''}
-    </div>`;
+        <div class="news-card-img">
+            <img src="${n.img}" alt="Noticia ${n.cat}" onerror="this.src='${FEATURED_IMAGES.HOME}'; this.onerror=null;">
+        </div>
+        <div class="news-card-body">
+            <div class="news-card-cat" style="color: ${CAT_COLORS[n.cat] || 'var(--accent)'};">${n.cat}</div>
+            <div class="news-card-title">${n.title}</div>
+            <div class="news-card-source" style="font-size: 0.75rem; color: var(--text-muted); margin-top: auto; padding-top: 8px;">
+                Fuente: ${n.source || 'Motorsport'}
+            </div>
+        </div>`;
+        
     card.addEventListener('click', () => {
         if (n.link) window.open(n.link, '_blank');
     });
+    
     return card;
 }
 
-/* ===================== CATEGORY PAGE ===================== */
-async function buildCategoryPage(cat) {
-    currentCat = cat;
-
-    const tbody = document.getElementById('tabla-body');
-    const calList = document.getElementById('cat-cal-list');
-    const notList = document.getElementById('cat-noticias-list');
-
-    // Header
-    const title = document.getElementById('cat-page-title');
-    if (title) title.textContent = catFullName(cat);
-
-    const logoEl = document.getElementById('cat-logo');
-    if (logoEl) {
-        logoEl.textContent = cat;
-        logoEl.style.color = CAT_COLORS[cat] || '#e10600';
-    }
-
-    // Featured cat image
-    const catImg = document.getElementById('cat-featured');
-    if (catImg) {
-        catImg.innerHTML = `<img src="${FEATURED_IMAGES[cat] || FEATURED_IMAGES.HOME}" alt="${cat}" onerror="this.parentElement && this.parentElement.classList.add('img-placeholder')">`;
-    }
-
-    // Show loaders immediately if not already cached
-    const key = cat.toUpperCase();
-    if (!STATE.categories[key]) {
-        const loaderHTML = `<div class="loader" style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.9rem;">Cargando ${cat}...</div>`;
-        if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 20px;">Cargando clasificación de ${cat}...</td></tr>`;
-        if (calList) calList.innerHTML = loaderHTML;
-        if (notList) notList.innerHTML = loaderHTML;
-    }
-
-    // Fetch the data and await it!
-    const data = await fetchCategoryData(cat);
-
-    if (!data) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--accent); padding: 20px;">Error al cargar la clasificación.</td></tr>`;
-        if (calList) calList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--accent);">Error al cargar el calendario.</div>`;
-        if (notList) notList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--accent);">Error al cargar las noticias.</div>`;
-        return;
-    }
-
-    // Render Standings
-    renderStandingsTable(data.standings);
-
-    // Render Calendar
-    renderCategoryCalendar(data.calendar);
-
-    // Render News
-    renderCategoryNews(data.news);
-}
-
-function renderStandingsTable(standings) {
-    const thead = document.querySelector('.tabla-clasificacion thead');
-    const tbody = document.getElementById('tabla-body');
-    if (!tbody || !thead) return;
-
-    tbody.innerHTML = '';
-
-    if (!standings) {
-        thead.innerHTML = `<tr><th class="num">#</th><th>Clasificación</th><th style="text-align:right">Pts</th></tr>`;
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--text-muted); padding: 20px;">Clasificación no disponible en esta categoría.</td></tr>`;
-        return;
-    }
-
-    let list = [];
-    let hasTeam = false;
-
-    if (Array.isArray(standings)) {
-        list = standings;
-    } else if (standings && standings.drivers) {
-        list = standings.drivers;
-    } else if (standings && standings.constructors) {
-        list = standings.constructors;
-    }
-
-    if (list.length === 0) {
-        thead.innerHTML = `<tr><th class="num">#</th><th>Clasificación</th><th style="text-align:right">Pts</th></tr>`;
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color: var(--text-muted); padding: 20px;">No hay clasificaciones cargadas.</td></tr>`;
-        return;
-    }
-
-    hasTeam = list.some(item => item.team);
-
-    if (hasTeam) {
-        thead.innerHTML = `
-            <tr>
-                <th class="num">#</th>
-                <th>Piloto</th>
-                <th>Equipo</th>
-                <th style="text-align:right">Pts</th>
-            </tr>`;
-    } else {
-        thead.innerHTML = `
-            <tr>
-                <th class="num">#</th>
-                <th>Piloto / Equipo</th>
-                <th style="text-align:right">Pts</th>
-            </tr>`;
-    }
-
-    list.forEach(r => {
-        const tr = document.createElement('tr');
-        const pos = parseInt(r.pos) || 1;
-        const posClass = pos === 1 ? 'pos pos-1' : pos === 2 ? 'pos pos-2' : pos === 3 ? 'pos pos-3' : 'pos';
-
-        if (hasTeam) {
-            tr.innerHTML = `
-                <td class="${posClass}">${r.pos}</td>
-                <td class="corredor">${r.driver || r.team || ''}</td>
-                <td style="color: var(--text-secondary);">${r.team || ''}</td>
-                <td class="pts">${r.points || '0'}</td>`;
-        } else {
-            tr.innerHTML = `
-                <td class="${posClass}">${r.pos}</td>
-                <td class="corredor">${r.driver || r.team || ''}</td>
-                <td class="pts">${r.points || '0'}</td>`;
-        }
-        tbody.appendChild(tr);
-    });
-}
-
-function renderCategoryCalendar(calendar) {
-    const calList = document.getElementById('cat-cal-list');
-    if (!calList) return;
-    calList.innerHTML = '';
-
-    if (!calendar || !Array.isArray(calendar) || calendar.length === 0) {
-        calList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">No hay carreras programadas en esta categoría.</div>`;
-        return;
-    }
-
-    calendar.forEach((r, i) => {
-        const div = document.createElement('div');
-        div.className = 'cal-item';
-
-        let statusText = r.status === 'Finished' ? 'Finalizado' : r.status === 'Live' ? 'EN VIVO' : 'Próximamente';
-        if (r.winner) {
-            statusText += ` • Ganador: ${r.winner}`;
-        }
-
-        div.innerHTML = `
-            <div class="cal-num">${r.round || (i + 1)}</div>
-            <div class="cal-info">
-              <div class="cal-name">${r.race}</div>
-              <div class="cal-desc">${statusText}</div>
-            </div>
-            <div class="cal-time">${formatRaceDate(r)}</div>`;
-        calList.appendChild(div);
-    });
-}
-
-function renderCategoryNews(news) {
-    const notList = document.getElementById('cat-noticias-list');
-    if (!notList) return;
-    notList.innerHTML = '';
-
-    if (!news || !Array.isArray(news) || news.length === 0) {
-        notList.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">No hay noticias disponibles en esta categoría.</div>`;
-        return;
-    }
-
-    news.forEach(n => {
-        const div = document.createElement('div');
-        div.className = 'noticia-list-item';
-        div.style.cursor = 'pointer';
-        div.innerHTML = `
-            <div class="n-info">
-              <div class="n-title" style="font-weight: 600;">${n.title}</div>
-              <div class="n-desc" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Fuente: ${n.source || 'Motorsport'}</div>
-            </div>
-            <div class="n-date" style="font-size: 0.78rem; color: var(--text-secondary);">Leer ↗</div>`;
-        div.addEventListener('click', () => {
-            if (n.link) window.open(n.link, '_blank');
-        });
-        notList.appendChild(div);
-    });
-}
-
 function formatRaceDate(item) {
-    if (item.dates) return item.dates;
-    if (item.startDate) {
-        const start = new Date(item.startDate);
-        const end = item.endDate ? new Date(item.endDate) : null;
-        if (isNaN(start.getTime())) return item.startDate;
-
+    if (item.dates) return item.dates; 
+    
+    let rawDateStr = item.startDate || item.date || item.fecha || item.raceDate || item.start;
+    if (rawDateStr) {
+        const start = parseDateLocal(rawDateStr);
+        let endRawDateStr = item.endDate || item.end;
+        const end = endRawDateStr ? parseDateLocal(endRawDateStr) : null;
+        
+        if (!start) return rawDateStr;
         const options = { day: 'numeric', month: 'short' };
-        const startFormatted = start.toLocaleDateString('es-AR', options);
-        if (end && !isNaN(end.getTime()) && start.getMonth() === end.getMonth()) {
-            return `${start.getDate()} - ${end.getDate()} ${start.toLocaleDateString('es-AR', { month: 'short' })}`;
-        } else if (end && !isNaN(end.getTime())) {
-            return `${startFormatted} - ${end.toLocaleDateString('es-AR', options)}`;
-        }
-        return startFormatted;
+        
+        if (end) return `${start.getDate()} - ${end.toLocaleDateString('es-AR', options)}`;
+        return start.toLocaleDateString('es-AR', options);
     }
     return '';
 }
 
 function catFullName(cat) {
-    const names = {
-        F1: 'Formula 1', WEC: 'FIA WEC', WRC: 'WRC',
-        TC: 'Turismo Carretera', INDYCAR: 'IndyCar', NASCAR: 'NASCAR',
-    };
+    const names = { F1: 'Formula 1', WEC: 'FIA WEC', WRC: 'WRC', TC: 'Turismo Carretera', INDYCAR: 'IndyCar', NASCAR: 'NASCAR' };
     return names[cat] || cat;
 }
 
-/* ===================== NAVIGATION ===================== */
+/* ===================== CATEGORY PAGE ===================== */
+async function buildCategoryPage(cat) {
+    currentCat = cat;
+    
+    const title = document.getElementById('cat-page-title');
+    if (title) title.textContent = catFullName(cat);
+
+    const data = await fetchCategoryData(cat);
+    if (!data) return;
+
+    // APLICAMOS LA LECTURA DEL LOGO DIRECTO DESDE LA API
+    const logoEl = document.getElementById('cat-logo');
+    if (logoEl) {
+        if (data.logo) {
+            // Inyectamos el SVG/IMG que manda tu JSON
+            logoEl.innerHTML = `<img src="${data.logo}" alt="Logo ${cat}">`;
+        } else {
+            // Plan B por si alguna categoría falla y no manda "logo"
+            logoEl.innerHTML = cat;
+            logoEl.style.color = CAT_COLORS[cat] || '#e10600';
+            logoEl.style.background = 'var(--bg-card)';
+            logoEl.style.border = '1px solid var(--border)';
+        }
+    }
+
+    const tbody = document.getElementById('tabla-body');
+    if (tbody) {
+        tbody.innerHTML = '';
+        let list = [];
+        
+        if (data.standings && data.standings.drivers) {
+            list = data.standings.drivers;
+        } else if (Array.isArray(data.standings)) {
+            list = data.standings;
+        }
+        
+        list.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="pos" style="text-align:center">${r.pos}</td>
+                <td class="corredor">${r.driver || r.team || ''}</td>
+                <td class="pts">${r.points || '0'}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    const calList = document.getElementById('cat-cal-list');
+    if (calList && data.calendar) {
+        calList.innerHTML = '';
+        data.calendar.forEach((r, i) => {
+            calList.innerHTML += `
+                <div class="cal-item">
+                    <div class="cal-num">${i + 1}</div>
+                    <div class="cal-info">
+                        <div class="cal-name">${cleanRaceName(r.race || r.name)}</div>
+                        <div class="cal-desc">${r.status || 'Programada'}</div>
+                    </div>
+                </div>`;
+        });
+    }
+
+    const notList = document.getElementById('cat-noticias-list');
+    if (notList && data.news) {
+        notList.innerHTML = '';
+        data.news.forEach(n => {
+            notList.innerHTML += `
+                <div class="noticia-list-item" onclick="window.open('${n.link}', '_blank')">
+                    <div class="n-info">
+                        <div class="n-title">${n.title}</div>
+                        <div class="n-source" style="font-size:0.75rem; color:var(--text-muted)">${n.source}</div>
+                    </div>
+                </div>`;
+        });
+    }
+}
+
+/* ===================== NAVIGATION & EVENTS ===================== */
 function showPage(page) {
+    if (!page) return;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(`page-${page}`)?.classList.add('active');
-    currentPage = page;
-    updateActiveLinks(page);
+    
+    const targetPage = document.getElementById(`page-${page}`);
+    if (targetPage) {
+        targetPage.classList.add('active');
+        currentPage = page;
+        updateActiveLinks(page);
+    }
 }
 
 function navigateToCat(cat) {
+    // Al forzar la compilacion de categoria, se leerá el logo.
     buildCategoryPage(cat);
     showPage('categoria');
     setActiveTab('clasificacion');
 }
 
-function navigateHome() {
-    showPage('home');
-}
-
 function updateActiveLinks(page) {
-    document.querySelectorAll('#nav-links a').forEach(a => {
-        a.classList.toggle('active', a.dataset.page === page);
-    });
-    document.querySelectorAll('#sidebar a').forEach(a => {
-        a.classList.toggle('active', a.dataset.page === page);
-    });
-    document.querySelectorAll('#mobile-drawer a[data-page]').forEach(a => {
+    const selectors = '#nav-links a[data-page], #sidebar a[data-page], #mobile-drawer a[data-page]';
+    document.querySelectorAll(selectors).forEach(a => {
         a.classList.toggle('active', a.dataset.page === page);
     });
 }
 
-/* ===================== TABS ===================== */
 function setActiveTab(tabId) {
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.tab === tabId);
-    });
-    document.querySelectorAll('.tab-panel').forEach(p => {
-        p.classList.toggle('active', p.id === `tab-${tabId}`);
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tabId}`));
+}
+
+function buildNav() {
+    const dropdown = document.getElementById('cat-dropdown-menu');
+    CATEGORIAS.forEach(cat => {
+        const a = document.createElement('a'); a.href = '#'; a.textContent = cat;
+        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); });
+        if (dropdown) dropdown.appendChild(a);
     });
 }
 
-/* ===================== EVENTS SETUP ===================== */
+function buildSidebar() {
+    const sb = document.getElementById('sidebar-links');
+    CATEGORIAS.forEach(cat => {
+        const a = document.createElement('a'); a.href = '#'; a.textContent = cat;
+        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); });
+        if (sb) sb.appendChild(a);
+    });
+}
+
+function buildMobileDrawer() {
+    const dl = document.getElementById('drawer-cat-links');
+    CATEGORIAS.forEach(cat => {
+        const a = document.createElement('a'); a.href = '#'; a.textContent = cat;
+        a.addEventListener('click', e => { e.preventDefault(); navigateToCat(cat); closeDrawer(); });
+        if (dl) dl.appendChild(a);
+    });
+}
+
 function setupEvents() {
-    // Hamburger
     const btnMenu = document.getElementById('btn-menu');
     const drawer = document.getElementById('mobile-drawer');
     const overlay = document.getElementById('overlay');
 
-    btnMenu?.addEventListener('click', () => {
-        const open = drawer.classList.toggle('open');
-        btnMenu.classList.toggle('open', open);
-        overlay.classList.toggle('show', open);
-    });
-    overlay?.addEventListener('click', closeDrawer);
+    if (btnMenu) {
+        btnMenu.addEventListener('click', () => {
+            const open = drawer.classList.toggle('open');
+            btnMenu.classList.toggle('open', open);
+            overlay.classList.toggle('show', open);
+        });
+    }
+    
+    if (overlay) overlay.addEventListener('click', closeDrawer);
 
-    // Nav home link
-    document.querySelectorAll('[data-page="home"]').forEach(el => {
-        el.addEventListener('click', e => { e.preventDefault(); navigateHome(); closeDrawer(); });
+    document.querySelectorAll('a[data-page]').forEach(el => {
+        el.addEventListener('click', e => {
+            e.preventDefault();
+            showPage(el.dataset.page);
+            closeDrawer();
+        });
     });
 
-    // Dropdown toggle
     const dropdown = document.querySelector('.dropdown');
-    const dropBtn = document.getElementById('cat-dropdown-btn');
-    dropBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('open');
-    });
-    document.addEventListener('click', () => dropdown?.classList.remove('open'));
+    const dropdownBtn = document.getElementById('cat-dropdown-btn');
+    
+    if (dropdownBtn) {
+        dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        });
+    }
+    document.addEventListener('click', () => { if (dropdown) dropdown.classList.remove('open'); });
 
-    // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
     });
 
-    // Wired general links to navigate home & scroll
-    document.querySelectorAll('a').forEach(a => {
-        if (a.textContent.includes('Calendario')) {
-            a.addEventListener('click', e => {
-                e.preventDefault();
-                navigateHome();
-                closeDrawer();
-                document.querySelector('.eventos-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
-        }
-        if (a.textContent.includes('Noticias')) {
-            a.addEventListener('click', e => {
-                e.preventDefault();
-                navigateHome();
-                closeDrawer();
-                document.querySelector('.noticias-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
-        }
+    const homePrev = document.getElementById('home-ev-prev');
+    if (homePrev) homePrev.addEventListener('click', () => {
+        currentHomeMonth--; if (currentHomeMonth < 0) { currentHomeMonth = 11; currentHomeYear--; } renderHomeEventsList();
+    });
+    
+    const homeNext = document.getElementById('home-ev-next');
+    if (homeNext) homeNext.addEventListener('click', () => {
+        currentHomeMonth++; if (currentHomeMonth > 11) { currentHomeMonth = 0; currentHomeYear++; } renderHomeEventsList();
+    });
+
+    const calPrev = document.getElementById('cal-page-prev');
+    if (calPrev) calPrev.addEventListener('click', () => {
+        currentCalMonth--; if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; } renderFullCalendar();
+    });
+    
+    const calNext = document.getElementById('cal-page-next');
+    if (calNext) calNext.addEventListener('click', () => {
+        currentCalMonth++; if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; } renderFullCalendar();
     });
 }
 
 function closeDrawer() {
-    document.getElementById('mobile-drawer')?.classList.remove('open');
-    document.getElementById('btn-menu')?.classList.remove('open');
-    document.getElementById('overlay')?.classList.remove('show');
+    const drawer = document.getElementById('mobile-drawer');
+    const btnMenu = document.getElementById('btn-menu');
+    const overlay = document.getElementById('overlay');
+    if (drawer) drawer.classList.remove('open');
+    if (btnMenu) btnMenu.classList.remove('open');
+    if (overlay) overlay.classList.remove('show');
 }
