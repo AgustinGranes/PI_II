@@ -509,11 +509,15 @@ async function buildCategoryPage(cat) {
     if (notList && data.news) {
         notList.innerHTML = '';
         data.news.forEach(n => {
+            const newsImg = n.image || FEATURED_IMAGES[cat];
             notList.innerHTML += `
                 <div class="noticia-list-item" onclick="window.open('${n.link}', '_blank')">
+                    <div class="n-img">
+                        <img src="${newsImg}" alt="${n.title}" onerror="this.src='${FEATURED_IMAGES.HOME}'; this.onerror=null;">
+                    </div>
                     <div class="n-info">
                         <div class="n-title">${n.title}</div>
-                        <div class="n-source" style="font-size:0.75rem; color:var(--text-muted)">${n.source}</div>
+                        <div class="n-source" style="font-size:0.75rem; color:var(--text-muted)">${n.source || 'Motorsport'}</div>
                     </div>
                 </div>`;
         });
