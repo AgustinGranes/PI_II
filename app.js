@@ -267,9 +267,20 @@ function renderFullCalendar() {
         cell.innerHTML = `<span class="day-num">${d}</span>${raceIndicatorHtml}`;
         
         cell.onclick = () => {
+            
+            const yaSeleccionado = cell.classList.contains('selected-day');
+
+            
             document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('selected-day'));
-            cell.classList.add('selected-day');
-            renderCalendarFilteredList(eventosMes, d);
+            
+            if (yaSeleccionado) {
+                
+                renderCalendarFilteredList(eventosMes, null);
+            } else {
+                
+                cell.classList.add('selected-day');
+                renderCalendarFilteredList(eventosMes, d);
+            }
         };
 
         grid.appendChild(cell);
@@ -492,17 +503,27 @@ async function buildCategoryPage(cat) {
 
     const calList = document.getElementById('cat-cal-list');
     if (calList && data.calendar) {
-        calList.innerHTML = '';
+        let calHTML = ''; // Creamos un string temporal para almacenar el HTML
+        
         data.calendar.forEach((r, i) => {
-            calList.innerHTML += `
+            // Utilizamos tu propia función para obtener la fecha formateada
+            const dateString = formatRaceDate(r);
+            
+            calHTML += `
                 <div class="cal-item">
                     <div class="cal-num">${i + 1}</div>
                     <div class="cal-info">
                         <div class="cal-name">${cleanRaceName(r.race || r.name)}</div>
                         <div class="cal-desc">${r.status || 'Programada'}</div>
                     </div>
+                    <div class="cal-time" style="text-transform: capitalize; text-align: right;">
+                        ${dateString}
+                    </div>
                 </div>`;
         });
+        
+        // Hacemos una única inserción en el DOM
+        calList.innerHTML = calHTML; 
     }
 
     const notList = document.getElementById('cat-noticias-list');
